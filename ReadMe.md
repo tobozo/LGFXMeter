@@ -195,8 +195,8 @@ Custom background, needle and shadow can be setup as follows:
   // - Image can be any size (scale will constrained) but smaller is faster, transparent png works
   // - Pointy end of the arrow goes on the top
   // - Shadow image must have same dimensions as arrow image
-  cfg.needleCfg.needleImg = &pixelArrow;
-  cfg.needleCfg.shadowImg = &shadowArrow;
+  cfg.needleCfg.needleImg = &vuMeterArrow;
+  cfg.needleCfg.shadowImg = &vuMeterShadow;
   //cfg.needleCfg.scaleX = 0.5; // scaling down a stretched image to produce nicer antialiased result
 
 
