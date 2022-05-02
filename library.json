@@ -1,0 +1,21 @@
+{
+  "name": "LGFXMeter",
+  "description": "LGFX based Gauge Decoration and Animation library",
+  "keywords": "esp32,lovyangfx,m5unified,m5gfx,esp32-chimera-core,gauge,animation",
+  "authors": {
+    "name": "tobozo",
+    "url": "https://github.com/tobozo",
+    "maintainer": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tobozo/LGFXMeter.git"
+  },
+  "version": "0.1.1",
+  "frameworks": "arduino",
+  "platforms": "espressif32",
+  "headers": "LGFXMeter.h",
+  "build": {
+    "libArchive": false
+  }
+}
