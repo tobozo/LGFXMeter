@@ -203,7 +203,6 @@ Custom background, needle and shadow can be setup as follows:
   // Optionally share a background image between TFT and the gauge sprite
   // - Image must be png/jpg/bmp/qoi or byte array
   // - Image dimensions must be tft.width() * tft.height()
-  // - Image will also be rendered on tft: M5.Lcd.drawPng( img->data, img->len, 0, 0 );
   cfg.bgImage   = &bgImg;
 
   // draw the gauge background shared image
