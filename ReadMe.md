@@ -1,5 +1,10 @@
 # LGFXMeter library
 
+
+![image](https://user-images.githubusercontent.com/1893754/166322961-1f34e81a-ebb4-4c7b-8c05-4857d09a3456.png)
+
+
+
 [![PlatformIO Registry](https://badges.registry.platformio.org/packages/tobozo/library/LGFXMeter.svg)](https://registry.platformio.org/packages/libraries/tobozo/LGFXMeter)
 
 This library was inspired by [ICSMeter](https://github.com/armel/ICSMeter).
