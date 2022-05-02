@@ -4,8 +4,6 @@
 
 This library was inspired by [ICSMeter](https://github.com/armel/ICSMeter).
 
-See the examples folder.
-
 
 ## Library requirements:
 
