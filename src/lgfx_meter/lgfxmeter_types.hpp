@@ -158,11 +158,10 @@ namespace LGFXMeter
   {
     ICS_Display   *display;          // output media (tft or sprite)
     ICS_Sprite    *gaugeSprite;      // background media
-    const image_t *needleImg;        // optional needle image
-    const image_t *shadowImg;        // optional needle shadow image (same size)
+    const image_t *img;              // optional needle image
+    const image_t *shadow;           // optional needle shadow image (same size)
     int32_t       width;             // needle sprite size
     int32_t       height;            // needle sprite size
-
     clipRect_t    clipRect;          // write zone in output media
     float         start;             // starting angle
     float         end;               // ending angle
@@ -184,10 +183,10 @@ namespace LGFXMeter
     ICS_Sprite            *dstCanvas; // output canvas (sprite)
     ICS_Display           *display;   // output media (tft, but sprite works too)
     clipRect_t            clipRect;   // gauge coords + surface
-    gauge_t               gauge;   // gauge geometry + rulers/labels
+    gauge_t               gauge;      // gauge geometry + rulers/labels
     float                 zoomAA;     // scaling level used for antialiasing
     const image_t         *bgImage;   // background png image
-    needle_cfg_t          needleCfg;  // needle config
+    needle_cfg_t          needle;     // needle config
     const gauge_palette_t *palette;
   };
 
@@ -305,39 +304,169 @@ namespace LGFXMeter
 
   namespace easing
   {
-    /*
-    * Easing Functions - inspired from http://gizma.com/easing/
+   /*
+    * Easing Functions - inspired from :
+    *   - http://gizma.com/easing/
+    *   - https://easings.net/
     * only considering the t value for the range [0, 1] => [0, 1]
     */
     typedef float (*easingFunc_t)(float in);
+    // for trigo
+    const float c1 = 1.70158;
+    const float c2 = c1 * 1.525;
+    const float c3 = c1 + 1;
+    const float c4 = (2 * PI) / 3;
+    const float c5 = (2 * PI) / 4.5;
+    // for bounce
+    const float n1 = 7.5625;
+    const float d1 = 2.75;
 
-      // no easing, no acceleration
-    float easing_linear( float t ) { return t; }
-      // accelerating from zero velocity
-    float easing_easeInQuad( float t ) { return t*t; }
-      // decelerating to zero velocity
-    float easing_easeOutQuad( float t ) { return  t*(2-t); }
-      // acceleration until halfway, then deceleration
-    float easing_easeInOutQuad( float t ) { return  t<.5 ? 2*t*t : -1+(4-2*t)*t; }
-      // accelerating from zero velocity
-    float easing_easeInCubic( float t ) { return t*t*t; }
-      // decelerating to zero velocity
-    float easing_easeOutCubic( float t ) { return (--t)*t*t+1; }
-      // acceleration until halfway, then deceleration
-    float easing_easeInOutCubic( float t ) { return  t<.5 ? 4*t*t*t : (t-1)*(2*t-2)*(2*t-2)+1; }
-      // accelerating from zero velocity
-    float easing_easeInQuart( float t ) { return t*t*t*t; }
-      // decelerating to zero velocity
-    float easing_easeOutQuart( float t ) { return 1-(--t)*t*t*t; }
-      // acceleration until halfway, then deceleration
-    float easing_easeInOutQuart( float t ) { return t<.5 ? 8*t*t*t*t : 1-8*(--t)*t*t*t; }
-      // accelerating from zero velocity
-    float easing_easeInQuint( float t ) { return t*t*t*t*t; }
-      // decelerating to zero velocity
-    float easing_easeOutQuint( float t ) { return 1+(--t)*t*t*t*t; }
-      // acceleration until halfway, then deceleration
-    float easing_easeInOutQuint( float t ) { return t<.5 ? 16*t*t*t*t*t : 1+16*(--t)*t*t*t*t; }
+    float linear(float t)           { return t; }
+    float easeInQuad(float t)       { return pow(t,2); }
+    float easeOutQuad(float t)      { return  t*(2.0f-t); }
+    float easeInOutQuad(float t)    { return  t<.5f ? 2.0f*pow(t,2) : -1.0f+(4.0f-2.0f*t)*t; }
+    float easeInCubic(float t)      { return pow(t,3); }
+    float easeOutCubic(float t)     { return (--t)*pow(t,2)+1.0f; }
+    float easeInOutCubic(float t)   { return  t<.5f ? 4.0f*pow(t,3) : (t-1.0f)*(2.0f*t-2.0f)*(2.0f*t-2.0f)+1.0f; }
+    float easeInQuart(float t)      { return pow(t,4); }
+    float easeOutQuart(float t)     { return 1.0f-(--t)*pow(t,3); }
+    float easeInOutQuart(float t)   { return t<.5f ? 8.0f*pow(t,4) : 1.0f-8.0f*(--t)*pow(t,3); }
+    float easeInQuint(float t)      { return pow(t,5); }
+    float easeOutQuint(float t)     { return 1.0f+(--t)*pow(t,4); }
+    float easeInOutQuint(float t)   { return t<.5f ? 16.0f*pow(t,5) : 1.0f+16.0f*(--t)*pow(t,4); }
+    float easeInSine(float t)       { return 1.0f - cos((t * PI) / 2.0f); }
+    float easeOutSine(float t)      { return sin((t * PI) / 2.0f); }
+    float easeInOutSine(float t)    { return -(cos(PI * t) - 1.0f) / 2.0f; }
+    float easeInExpo(float t)       { return t==0 ? 0 : pow(2, 10.0f * t - 10.0f); }
+    float easeOutExpo(float t)      { return t==1.0f ? 1.0f : 1.0f - pow(2, -10.0f * t); }
+    float easeInOutExpo(float t)    { return t==0 ? 0 : t==1.0f ? 1.0f : t < 0.5f ? pow(2, 20.0f * t - 10.0f) / 2.0f : (2.0f - pow(2, -20.0f * t + 10.0f)) / 2.0f; }
+    float easeInCirc(float t)       { return 1.0f - sqrt(1.0f - pow(t, 2.0f)); }
+    float easeOutCirc(float t)      { return sqrt(1.0f - pow(t - 1, 2.0f)); }
+    float easeInOutCirc(float t)    { return t < 0.5f ? (1.0f - sqrt(1.0f - pow(2.0f * t, 2.0f))) / 2.0f : (sqrt(1 - pow(-2.0f * t + 2.0f, 2.0f)) + 1.0f) / 2.0f; }
+    float easeInBack(float t)       { return c3 * t * t * t - c1 * t * t; }
+    float easeOutBack(float t)      { return 1.0f + c3 * pow(t - 1.0f, 3.0f) + c1 * pow(t - 1.0f, 2.0f); }
+    float easeInOutBack(float t)    { return t < 0.5f ? (pow(2.0*t, 2.0f) * ((c2 + 1.0f) * 2.0f * t - c2)) / 2.0f : (pow(2.0*t-2, 2.0f) * ((c2 + 1.0f) * (t * 2.0f - 2.0f) + c2) + 2.0f) / 2.0f; }
+    float easeInElastic(float t)    { return t==0 ? 0 : t==1.0f ? 1.0f : -pow(2, 10.0f * t - 10.0f) * sin((t * 10.0f - 10.75f) * c4); }
+    float easeOutElastic(float t)   { return t==0 ? 0 : t==1.0f ? 1.0f : pow(2, -10.0f * t) * sin((t * 10.0f - 0.75f) * c4) + 1; }
+    float easeInOutElastic(float t) { return t==0 ? 0 : t==1 ? 1 : t<0.5 ? -(pow(2, 20.0f*t-10.0f)*sin((20.0f*t-11.125f)*c5))/2.0f : (pow(2,-20.0f*t+10.0f)*sin((20.0f*t-11.125f)*c5))/2.0f+1.0f; }
+    float easeOutBounce(float t)    { return (t<1.0f/d1) ? n1*t*t : (t<2.0f/d1) ? n1*(t-=1.5f/d1)*t+0.75f : (t<2.5f/d1) ? n1*(t-=2.25f/d1)*t+0.9375f : n1*(t-=2.625f/d1)*t+0.984375f; }
+    float easeInBounce(float t)     { return 1.0f - easeOutBounce(1.0f - t); }
+    float easeInOutBounce(float t)  { return t < 0.5f ? (1.0f - easeOutBounce(1.0f - 2.0f * t)) / 2.0f : (1.0f + easeOutBounce(2.0f * t - 1.0f)) / 2.0f; }
+
+    struct easingFuncDesc_t
+    {
+      const char* name;
+      easingFunc_t func;
+    };
+
+    const easingFuncDesc_t functions[] =
+    {
+      { "linear",           linear           },
+      { "easeInQuad",       easeInQuad       },
+      { "easeOutQuad",      easeOutQuad      },
+      { "easeInOutQuad",    easeInOutQuad    },
+      { "easeInCubic",      easeInCubic      },
+      { "easeOutCubic",     easeOutCubic     },
+      { "easeInOutCubic",   easeInOutCubic   },
+      { "easeInQuart",      easeInQuart      },
+      { "easeOutQuart",     easeOutQuart     },
+      { "easeInOutQuart",   easeInOutQuart   },
+      { "easeInQuint",      easeInQuint      },
+      { "easeOutQuint",     easeOutQuint     },
+      { "easeInOutQuint",   easeInOutQuint   },
+      { "easeInSine",       easeInSine       },
+      { "easeOutSine",      easeOutSine      },
+      { "easeInOutSine",    easeInOutSine    },
+      { "easeInExpo",       easeInExpo       },
+      { "easeOutExpo",      easeOutExpo      },
+      { "easeInOutExpo",    easeInOutExpo    },
+      { "easeInCirc",       easeInCirc       },
+      { "easeOutCirc",      easeOutCirc      },
+      { "easeInOutCirc",    easeInOutCirc    },
+      { "easeInBack",       easeInBack       },
+      { "easeOutBack",      easeOutBack      },
+      { "easeInOutBack",    easeInOutBack    },
+      { "easeInElastic",    easeInElastic    },
+      { "easeOutElastic",   easeOutElastic   },
+      { "easeInOutElastic", easeInOutElastic },
+      { "easeOutBounce",    easeOutBounce    },
+      { "easeInBounce",     easeInBounce     },
+      { "easeInOutBounce",  easeInOutBounce  }
+    };
+
+
+
   };
+
+
+  namespace smoother
+  {
+   /*
+    * Frequently used functions during procedural texturing and modeling.
+    * https://iquilezles.org/articles/smoothsteps/
+    *
+    * C1/C2/C(n-1)=Continuity
+    *
+    */
+
+    namespace Cubic_Polynomial_C1
+    {
+      float smoothstep( float x ) { return x*x*(3.0f-2.0f*x); }
+      float inv_smoothstep( float x ) { return 0.5f-sin(asin(1.0f-2.0f*x)/3.0f); }
+    }
+
+    namespace Quartic_Polynomial_C1
+    {
+      float smoothstep( float x ) { return x*x*(2.0f-x*x); }
+      float inv_smoothstep( float x ) { return sqrt(1.0f-sqrt(1.0f-x)); }
+    }
+
+    namespace Quintic_Polynomial_C2
+    {
+      float smoothstep( float x ) { return x*x*x*(x*(x*6.0f-15.0f)+10.0f); }
+    }
+
+    namespace Quadratic_Rational_C1
+    {
+      float smoothstep( float x ) { return x*x/(2.0f*x*x-2.0f*x+1.0f); }
+      float inv_smoothstep( float x ) { return (x-sqrt(x*(1.0f-x)))/(2.0f*x-1.0f); }
+    }
+
+    namespace Cubic_Rational_C2
+    {
+      float smoothstep( float x ) { return x*x*x/(3.0f*x*x-3.0f*x+1.0f); }
+      float inv_smoothstep( float x ) { float a = pow(    x,1.0f/3.0f); float b = pow(1.0f-x,1.0f/3.0f); return a/(a+b); }
+      float inv_smoothstep_alternate( float x ) { float w=2.0f*sqrt(x*(1.0f-x)); float t=(x*(3.0f-2.0f*x)-1.0f)/(w*(1.0f-x)); return x-w*sinh(asinh(t)/3.0f); }
+    }
+
+    namespace Rational_C1
+    {
+      float smoothstep( float x, float n ) { return pow(x,n)/(pow(x,n)+pow(1.0f-x,n)) ; }
+      float inv_smoothstep( float x, float n ) { return smoothstep( x, 1.0f/n ); }
+    }
+
+    namespace Piecewise_Quadratic_C1
+    {
+      float smoothstep( float x ) { return (x<0.5f) ? 2.0f*x*x: 2.0f*x*(2.0f-x)-1.0f; }
+      float inv_smoothstep( float x ) { return (x<0.5f) ? sqrt(0.5f*x): 1.0f-sqrt(0.5f-0.5f*x); }
+    }
+
+    namespace Piecewise_Polynomial_C // (n-1)
+    {
+      float smoothstep( float x, float n ) { return (x<0.5f) ? 0.5f*pow(2.0f* x, n): 1.0f-0.5f*pow(2.0f*(1.0f-x), n); }
+      float inv_smoothstep( float x, float n ) { return (x<0.5f) ? 0.5f*pow(2.0f*     x, 1.0f/n): 1.0f-0.5f*pow(2.0f*(1.0f-x),1.0f/n); }
+    }
+
+    namespace Trigonometric_C1
+    {
+      float smoothstep( float x ) { return 0.5f-0.5f*cos(PI*x); }
+      float inv_smoothstep( float x ) { return acos(1.0f-2.0f*x)/PI; }
+    }
+
+
+
+  };
+
 
 
 };
