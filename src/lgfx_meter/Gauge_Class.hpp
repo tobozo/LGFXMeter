@@ -33,7 +33,6 @@
 
 #include "lgfxmeter_types.hpp"
 #include "Needle_Class.hpp"
-#include <vector>
 
 
 namespace LGFXMeter
@@ -46,7 +45,7 @@ namespace LGFXMeter
 
     const image_t default_background = // default background (transparent)
     {
-      .bit_depth = 8,
+      .bit_depth = 16,
       .data      = nullptr,
       .len       = 0,
       .type      = IMAGE_RAW
@@ -85,7 +84,7 @@ namespace LGFXMeter
       .gauge     = default_gauge_set,
       .zoomAA    = 0.5f, // antialias scale value, set to 0.5 or lower for smoothing, 1.0 if ram issues or 2.0 for ugly pixelated result
       .bgImage   = &default_background,
-      .needleCfg = needle::config(),
+      .needle    = needle::config(),
       .palette   = &default_gauge_set.palette
     };
 
@@ -103,8 +102,12 @@ namespace LGFXMeter
       };
 
       void pushGauge();
+      void createNeedle();
       void drawNeedle( float angle, bool render_value = false );
       void animateNeedle( float_t angle, bool render_value = false );
+      void setNeedle( float_t angle );
+      void easeNeedle( uint32_t timeout = 300, easing::easingFunc_t _easingFunc=easing::easeInOutQuart );
+      ICS_Sprite *getGaugeSprite() { return gaugeSprite; }
 
     private:
 
@@ -116,7 +119,7 @@ namespace LGFXMeter
       //const float deg2width = 2*PI/180.0f;
       const float _offset = -90.0; // "0 degree middle top" ref angle for drawing
 
-      coord_t axis;
+      coord_t axis; // ruler axis, shared with needle
       int32_t dstPosX, dstPosY;
 
       clipRect_t *clipRect = nullptr;
@@ -128,14 +131,9 @@ namespace LGFXMeter
       bool _ready          = false;
       bool _debug          = false;
 
-      std::vector<ruler_item_t> rulers;
-
       void setupGauge();
       void initNeedle();
       bool initMask();
-
-      void addRulerItems();
-      void addRulerItem( const ruler_item_t item );
 
       void drawRulers();
       void drawRuler( const ruler_t *ruler, uint32_t ruler_color );
@@ -152,7 +150,12 @@ namespace LGFXMeter
     {
       // background image behind the gauge
       bgImage        = cfg.bgImage;
-      axis           = { clipRect->w/2, int(clipRect->w*.6875f) }; // TODO: find a better way to position the axis
+      if( cfg.needle.axis.x+cfg.needle.axis.y==0 ) {
+        // ypos = clipRect->y + cfg.needle.height
+        axis           = { clipRect->w/2, int(clipRect->w*.6875f)-clipRect->y }; // TODO: find a better way to position the axis
+      } else {
+        axis = cfg.needle.axis;
+      }
       dstShrinkLevel = cfg.zoomAA;
       maskScale      = 1.0/cfg.zoomAA;
       // adjust to screen proportions
@@ -192,12 +195,15 @@ namespace LGFXMeter
       dstPosX  = clipRect->w/2;
       dstPosY  = clipRect->h/2;
       // render
-      addRulerItems();
-      if( initMask() ) {
-        drawRulers();
-        spriteMask->deleteSprite();
-        initNeedle();
+
+      if( cfg.gauge.items && cfg.gauge.items_count > 0 ) {
+        if( initMask() ) {
+          drawRulers();
+          spriteMask->deleteSprite();
+        }
       }
+
+      initNeedle();
     }
 
 
@@ -234,19 +240,19 @@ namespace LGFXMeter
     void Gauge_Class::initNeedle()
     {
       // prepare needle config
-      auto needleCfg = &cfg.needleCfg;
-      needleCfg->display           = cfg.display;
-      needleCfg->gaugeSprite       = gaugeSprite;
-      needleCfg->clipRect          = cfg.clipRect;
-      needleCfg->start             = cfg.gauge.start;
-      needleCfg->end               = cfg.gauge.end;
-      needleCfg->axis              = axis;
-      needleCfg->fill_color        = cfg.palette->needle_color;
-      needleCfg->border_color      = cfg.palette->needle_border_color;
-      needleCfg->transparent_color = cfg.palette->transparent_color;
-      needleCfg->shadow_color      = cfg.palette->needle_shadow_color;
+      auto needle = &cfg.needle;
+      needle->display           = cfg.display;
+      needle->gaugeSprite       = gaugeSprite;
+      needle->clipRect          = cfg.clipRect;
+      needle->start             = cfg.gauge.start;
+      needle->end               = cfg.gauge.end;
+      needle->axis              = axis;
+      needle->fill_color        = cfg.palette->needle_color;
+      needle->border_color      = cfg.palette->needle_border_color;
+      needle->transparent_color = cfg.palette->transparent_color;
+      needle->shadow_color      = cfg.palette->needle_shadow_color;
 
-      Needle = new Needle_Class( cfg.needleCfg );
+      Needle = new Needle_Class( cfg.needle );
       _ready = Needle->ready();
     }
 
@@ -342,6 +348,7 @@ namespace LGFXMeter
 
     void Gauge_Class::drawAngleValue( float angle )
     {
+      if( !spriteMask ) return;
       spriteMask->setTextColor( TFT_BLACK );
       spriteMask->setFont( &FreeMonoBold9pt7b );
       spriteMask->setTextDatum( ML_DATUM );
@@ -366,34 +373,36 @@ namespace LGFXMeter
 
     void Gauge_Class::drawRulers()
     {
-      for( int i=0; i<rulers.size(); i++ ) {
-        drawRuler( rulers[i].ruler, rulers[i].color_index );
-      }
-    }
-
-
-    void Gauge_Class::addRulerItems()
-    {
+      assert( cfg.gauge.items );
+      assert( cfg.gauge.items_count > 0 );
       for( int i=0; i<cfg.gauge.items_count; i++ ) {
-        addRulerItem( cfg.gauge.items[i] );
+        drawRuler( cfg.gauge.items[i].ruler, cfg.gauge.items[i].color_index );
       }
     }
 
 
-    void Gauge_Class::addRulerItem( const ruler_item_t item )
+    void Gauge_Class::createNeedle()
     {
-      rulers.push_back( item );
+      if( Needle ) Needle->createNeedle( true );
+    }
+
+
+    void Gauge_Class::setNeedle( float_t angle )
+    {
+      if( Needle ) Needle->setAngle( angle );
+    }
+
+
+    void Gauge_Class::easeNeedle( uint32_t timeout, easing::easingFunc_t _easingFunc )
+    {
+      if( Needle ) Needle->ease( timeout, _easingFunc );
     }
 
 
     void Gauge_Class::drawNeedle( float angle, bool render_value )
     {
-      if( Needle )
-        Needle->render( angle );
-
-      if( render_value ) {
-        drawAngleValue( angle );
-      }
+      if( Needle ) Needle->render( angle );
+      if( render_value )  drawAngleValue( angle );
     }
 
 
@@ -405,7 +414,6 @@ namespace LGFXMeter
       if( render_value ) {
         drawAngleValue( angle );
       }
-
     }
 
   }; // end namespace gauge
