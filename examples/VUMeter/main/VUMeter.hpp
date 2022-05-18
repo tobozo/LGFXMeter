@@ -60,7 +60,7 @@ namespace LGFXMeter
       {  13, 70.0f,    "+1",   12,       15, &FreeSans12pt7b,     0.8f,  MC_DATUM },
       {  14, 80.0f,    "+2",   12,       15, &FreeSans12pt7b,     0.8f,  MC_DATUM },
       {  15, 90.0f,    "+3",   12,       15, &FreeSans12pt7b,     0.8f,  MC_DATUM },
-      {  16, 45.0f,    "VU",    0,      -20, &Orbitron_Light_24,  1.5f,  TC_DATUM }, // vanity ruler
+      {  16, 45.0f,    "VU",    0,      -20, &Orbitron_Light_24,  1.5f,  TC_DATUM }, // main title ruler
     };
 
 

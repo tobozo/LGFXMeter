@@ -49,12 +49,12 @@ namespace LGFXMeter
     {
       .display           = nullptr,
       .gaugeSprite       = nullptr,
-      .needleImg         = nullptr, // default is a 2bpp triangle
-      .shadowImg         = nullptr, // default is copy of needleImg with palette forced to shadow_color
+      .img               = nullptr, // default is a 2bpp triangle
+      .shadow            = nullptr, // default is copy of img with palette forced to shadow_color
       .width             = 8,
       .height            = 160,
       //.angleOffset       = 0,       // 180.0 if upside down
-      .clipRect          = {0,0,0,0},
+      .clipRect          = {0,0,0,0}, // gauge cliprect, nothing will be drawn outside this zone
       .start             = -45.0,
       .end               =  45.0,
       .axis              = {0,0},
@@ -81,29 +81,42 @@ namespace LGFXMeter
         assert( _cfg.gaugeSprite );
         assert( _cfg.display );
         cfg          = _cfg;
-        ICSDisplay   = cfg.display;
+        display      = cfg.display;
         gaugeSprite  = cfg.gaugeSprite;
         lastAngle    = cfg.start;
         createNeedle();
       };
 
-      easingFunc_t easingFunc = easing_easeInOutQuart;
+      easingFunc_t easingFunc = easing::easeInOutQuart;
 
       void render( float angle );
-      void animate( float_t angle);
+      void animate( float_t angle, uint32_t duration = 300 );
       bool ready() { return _ready; }
+      void createNeedle( bool prune = false );
+      void setAngle( float_t angle );
+      void ease( uint32_t duration = 300, easingFunc_t _easingFunc=easing::easeInOutQuart );
 
     private:
 
-      ICS_Display *ICSDisplay  = nullptr;
-      ICS_Sprite *clipSprite   = nullptr;
-      ICS_Sprite *needleSprite = nullptr;
-      ICS_Sprite *shadowSprite = nullptr;
-      ICS_Sprite *gaugeSprite  = nullptr;
+      ICS_Display *display      = nullptr;
+      ICS_Sprite  *clipSprite   = nullptr;
+      ICS_Sprite  *needleSprite = nullptr;
+      ICS_Sprite  *shadowSprite = nullptr;
+      ICS_Sprite  *gaugeSprite  = nullptr;
 
       bool _has_rendered = false;
       bool _ready        = false;
       bool _debug        = false;
+
+
+      // easing helpers
+      uint32_t animationDuration = 300;
+      uint32_t animationStart    = millis();
+      uint32_t animationElapsed  = 0;
+      uint32_t animationFrames   = 0;
+      float    destAngle         = 0;
+      float    tripAngle         = 0;
+
 
       uint16_t xMiddle; // for pivot
       int32_t shadowOffX, shadowOffY; // shadow offset
@@ -112,9 +125,8 @@ namespace LGFXMeter
 
       clipRect_t lastclipRect = {0,0,0,0};
 
-      float lastAngle = -45.0f;
+      float lastAngle = 0;//-45.0f;
 
-      void createNeedle();
       clipRect_t getArrowBoundingRect( coord_t *pt_high, coord_t *pt_low, coord_t *pt_axis, float angle );
       void pushNeedle(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y, uint32_t transparent_color );
 
@@ -122,27 +134,32 @@ namespace LGFXMeter
 
 
 
-    void Needle_Class::createNeedle()
+    void Needle_Class::createNeedle( bool prune )
     {
+      if( prune ) {
+        if( clipSprite )   { clipSprite->deleteSprite();   clipSprite = nullptr; }
+        if( needleSprite ) { needleSprite->deleteSprite(); needleSprite = nullptr; }
+        if( shadowSprite ) { shadowSprite->deleteSprite(); shadowSprite = nullptr; }
+      }
 
       if( ! clipSprite ) {
-        clipSprite = new ICS_Sprite( ICSDisplay );
+        clipSprite = new ICS_Sprite( display );
         clipSprite->setColorDepth( gaugeSprite->getColorDepth() );
         // psram sprites are slow, force dram use
         clipSprite->setPsram( false );
       }
 
-      if( cfg.needleImg ) {
-        cfg.width  = cfg.needleImg->width;
-        cfg.height = cfg.needleImg->height;
+      if( cfg.img ) {
+        cfg.width  = cfg.img->width;
+        cfg.height = cfg.img->height;
       }
 
       xMiddle = cfg.width/2; // pointy end horizontal pos
 
       if( !needleSprite ) {
 
-        needleSprite = new ICS_Sprite( ICSDisplay );
-        needleSprite->setColorDepth( cfg.needleImg ? cfg.needleImg->bit_depth : 4 );
+        needleSprite = new ICS_Sprite( display );
+        needleSprite->setColorDepth( cfg.img ? cfg.img->bit_depth : 4 );
         // psram sprites are slow, force dram use, the sprite is small anyway
         needleSprite->setPsram( false );
 
@@ -156,14 +173,14 @@ namespace LGFXMeter
         needleSprite->setPaletteColor( 2, cfg.border_color );
         needleSprite->setPaletteColor( 3, cfg.shadow_color );
 
-        if( cfg.needleImg ) { // 32x40 png data was provided
+        if( cfg.img ) { // 32x40 png data was provided
 
-          if( ! cfg.shadowImg ) {
+          if( ! cfg.shadow ) {
             cfg.drop_shadow = false;
           }
 
           needleSprite->fillSprite( cfg.transparent_color );
-          drawImage( needleSprite, cfg.needleImg, 0, 1, cfg.width, cfg.height );
+          drawImage( needleSprite, cfg.img, 0, 1, cfg.width, cfg.height );
 
         } else {
 
@@ -171,7 +188,6 @@ namespace LGFXMeter
           needleSprite->setRotation( 2 );
 
           // since it's a filled shape, it can be re-used to drop a shadow
-          cfg.drop_shadow = true;
 
           coord_t bottom_left  = { 0,         0          },
                   bottom_right = { cfg.width, 0          },
@@ -201,8 +217,8 @@ namespace LGFXMeter
         shadowOffX = cfg.shadowOffX;
         shadowOffY = cfg.shadowOffY;
 
-        shadowSprite = new ICS_Sprite( ICSDisplay );
-        shadowSprite->setColorDepth( cfg.shadowImg ? cfg.shadowImg->bit_depth : 4 );
+        shadowSprite = new ICS_Sprite( display );
+        shadowSprite->setColorDepth( cfg.shadow ? cfg.shadow->bit_depth : 4 );
         // psram sprites are slow, force dram use, the sprite is small anyway
         shadowSprite->setPsram( false );
 
@@ -215,9 +231,9 @@ namespace LGFXMeter
           shadowSprite->setPaletteColor( 2, cfg.shadow_color );
           shadowSprite->setPaletteColor( 1, cfg.shadow_color );
 
-          if( cfg.shadowImg ) { // shadow image was provided
+          if( cfg.shadow ) { // shadow image was provided
             shadowSprite->fillSprite( cfg.transparent_color );
-            drawImage( shadowSprite, cfg.shadowImg, 0, 1, cfg.width, cfg.height );
+            drawImage( shadowSprite, cfg.shadow, 0, 1, cfg.width, cfg.height );
           } else { // copy needle image with palette forced to shadow_color
             needleSprite->pushSprite( shadowSprite, 0, 0 );
           }
@@ -237,54 +253,93 @@ namespace LGFXMeter
       scaleX = cfg.scaleX;
       scaleY = float(yhigh)/float(needleSprite->height()); // match half needle size to radius size
 
-      log_d("Needle CFG: high=%d, low=%d, scaleX=%.2f, scaleY=%.2f, shadow: %s", yhigh, ylow, scaleX, scaleY, cfg.drop_shadow?(cfg.shadowImg?"img":"true"):"false" );
+      log_d("\nNeedle CFG:\n\taxis=[%d:%d]\n\tclipRect=[%d:%d %d*%d]\n\tspan=[%d..%d]\n\tscale=[%.2f*%.2f]\n\tshadow: %s",
+        cfg.axis.x,
+        cfg.axis.y,
+        cfg.clipRect.x,
+        cfg.clipRect.y,
+        cfg.clipRect.w,
+        cfg.clipRect.h,
+        ylow,
+        yhigh,
+        scaleX,
+        scaleY,
+        cfg.drop_shadow?(cfg.shadow?"img":"true"):"false"
+      );
 
       _ready = true;
     }
 
 
 
-    void Needle_Class::animate( float_t angle )
+    void Needle_Class::setAngle( float_t angle )
     {
-      if( angle == lastAngle ) return;
+      if( angle == destAngle ) return;
+
+      if( animationElapsed < animationDuration ) {
+        // setting new angle while still animating?
+        lastAngle = tripAngle;
+      } else {
+        lastAngle = destAngle;
+      }
+
+      destAngle         = angle;
+      animationStart    = millis();
+      animationElapsed  = 0;
+      animationFrames   = 0;
+    }
+
+    void Needle_Class::ease( uint32_t timeout, easingFunc_t _easingFunc )
+    {
+      if( timeout > 0 ) animationDuration = timeout;
       if( !_ready ) return;
 
-      // constrain to gauge values
-      //if( angle<cfg.start ) angle = cfg.start;
-      //if( angle>cfg.end )   angle = cfg.end;
+      easingFunc = _easingFunc;
 
-      uint32_t animationDuration = 300;
-      uint32_t animationStart    = millis();
-      uint32_t animationElapsed  = 0;
-      uint32_t animationFrames   = 0;
+      if( animationElapsed >= animationDuration ) {
+        lastAngle = destAngle;
+        return;
+      }
+
+      float fElapsed, angleEased, min_output, max_output, min_angle, max_angle, min_duration, max_duration;
+
+      min_output = ( destAngle > lastAngle ) ? 0.0f : 1.0f;
+      max_output = 1.0-min_output;
+
+      min_angle = ( destAngle > lastAngle ) ? lastAngle : destAngle;
+      max_angle = ( destAngle > lastAngle ) ? destAngle : lastAngle;
+
+      min_duration = 0.0f;
+      max_duration = float(animationDuration);
+
+      fElapsed = mapFloat( float(animationElapsed), min_duration, max_duration, min_output, max_output );
+      angleEased = easingFunc( fElapsed );
+      tripAngle = mapFloat( angleEased, 0.0f, 1.0f, min_angle, max_angle );
+
+      render( tripAngle );
+      animationFrames++;
+      animationElapsed = millis() - animationStart;
+    }
+
+
+    void Needle_Class::animate( float_t angle, uint32_t duration )
+    {
+      if( angle == lastAngle ) return;
+
+      animationDuration = duration;
+      animationStart    = millis();
+      animationElapsed  = 0;
+      animationFrames   = 0;
+      destAngle         = angle;
 
       while( animationElapsed < animationDuration ) {
-
-        float fElapsed, tmp_angle, angleEased;
-        if( angle > lastAngle ) {
-
-          fElapsed = mapFloat( float(animationElapsed), 0.0f, float(animationDuration), 0.0f, 1.0f );
-          angleEased = easingFunc( fElapsed );
-          tmp_angle = mapFloat( angleEased, 0.0, 1.0, lastAngle, angle );
-
-        } else {
-
-          fElapsed = mapFloat( float(animationElapsed), 0, float(animationDuration), 1.0, 0.0 );
-          angleEased = easingFunc( fElapsed );
-          tmp_angle = mapFloat( angleEased, 0.0, 1.0, angle, lastAngle );
-
-        }
-
-        render( tmp_angle );
-        animationFrames++;
-        animationElapsed = millis() - animationStart;
-
+        ease( animationDuration );
       }
 
       uint32_t animationEnd = millis();
-      animationDuration = animationEnd-animationStart;
-      float fps = float(animationFrames)/float(animationDuration) * 1000.0;
-      log_d("[%+06.2f=>%+06.2f]@[%3d:%-3d][%3d*%-3d] %d frames in %d ms (=%.2f fps)", lastAngle, angle, lastclipRect.x, lastclipRect.y, lastclipRect.w, lastclipRect.h, animationFrames, animationDuration, fps );
+      uint32_t totalAnimationDuration = animationEnd-animationStart;
+      float fps = float(animationFrames)/float(totalAnimationDuration) * 1000.0;
+      log_d("[%+06.2f=>%+06.2f]@[%3d:%-3d][%3d*%-3d] %d frames in %d ms (=%.2f fps)", lastAngle, angle, lastclipRect.x, lastclipRect.y, lastclipRect.w, lastclipRect.h, animationFrames, totalAnimationDuration, fps );
 
       lastAngle = angle;
     }
@@ -295,9 +350,6 @@ namespace LGFXMeter
     void Needle_Class::render( float absangle )
     {
       if( !_ready ) return;
-      // TODO: constrain to gauge values
-      //if( absangle<cfg.start ) absangle = cfg.start;
-      //if( absangle>cfg.end )   absangle = cfg.end;
 
       float angle            = -cfg.start - absangle; // translate to relative
       coord_t pt_high        = {0, yhigh};
@@ -357,17 +409,15 @@ namespace LGFXMeter
       } else {
         // overlapping, will create a sprite to clear last needle then draw the new needle
         merge_render = clipSprite->createSprite( absClip.w, absClip.h );
-        //if(!merge_render) log_d("Duh!");
       }
 
       if( merge_render ) { // clear + draw needle in a single sprite
 
-        ICSDisplay->setClipRect( absClip.x, absClip.y, absClip.w, absClip.h );
+        display->setClipRect( absClip.x, absClip.y, absClip.w, absClip.h );
         // restore to background
         gaugeSprite->pushSprite( clipSprite, cfg.clipRect.x-absClip.x, cfg.clipRect.y-absClip.y );
         // draw needle
         pushNeedle( clipSprite, relClip.x, relClip.y, angle, scaleX, scaleY, cfg.transparent_color );
-
         // DEBUG
         if( _debug ) clipSprite->drawRect( 0, 0, clipSprite->width(),clipSprite->height(), TFT_BLACK );
         clipSprite->pushSprite(  absClip.x, absClip.y );
@@ -376,11 +426,11 @@ namespace LGFXMeter
       } else {
 
         // clear last needle
-        ICSDisplay->setClipRect( lastclipRect.x+cfg.clipRect.x, lastclipRect.y+cfg.clipRect.y, lastclipRect.w, lastclipRect.h );
-        gaugeSprite->pushSprite( ICSDisplay, cfg.clipRect.x, cfg.clipRect.y );
+        display->setClipRect( lastclipRect.x+cfg.clipRect.x, lastclipRect.y+cfg.clipRect.y, lastclipRect.w, lastclipRect.h );
+        gaugeSprite->pushSprite( display, cfg.clipRect.x, cfg.clipRect.y );
 
         // draw new needle
-        ICSDisplay->setClipRect( currentClip.x, cfg.clipRect.y, currentClip.w, cfg.clipRect.h );
+        display->setClipRect( currentClip.x, cfg.clipRect.y, currentClip.w, cfg.clipRect.h );
 
         if( sprite_needle ) { // have to do this to avoid antialiasing with TFT
 
@@ -391,12 +441,12 @@ namespace LGFXMeter
 
         } else { // duh! not enough memory to use a sprite, antialias will blend to default black from TFT :(
 
-          pushNeedle( ICSDisplay, x+cfg.clipRect.x, y+cfg.clipRect.y, angle, scaleX, scaleY, cfg.transparent_color );
+          pushNeedle( display, x+cfg.clipRect.x, y+cfg.clipRect.y, angle, scaleX, scaleY, cfg.transparent_color );
 
         }
       }
 
-      ICSDisplay->clearClipRect();
+      display->clearClipRect();
       lastclipRect = currentClip;
     }
 

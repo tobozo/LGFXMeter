@@ -84,14 +84,16 @@ void setup()
   //   - 320*160 gauge with cfg.zoomAA=1.0 will use a 320*160 mask with NO antialias
   //
   // cfg.zoomAA = psramInit() ? 0.5 : 1.0;
+  //cfg.zoomAA = 1.0;
 
   // Optionally use pre-rendered arrow and custom shadow
   // - Image can be any size (scale will constrained) but smaller is faster, transparent png works
   // - Pointy end of the arrow goes on the top
   // - Shadow image must have same dimensions as arrow image
-  //cfg.needleCfg.needleImg = &pixelArrow;
-  //cfg.needleCfg.shadowImg = &shadowArrow;
-  //cfg.needleCfg.scaleX = 0.5; // scaling down a stretched image to produce nicer antialiased result
+  //cfg.needle.img    = &pixelArrow;
+  //cfg.needle.shadow = &shadowArrow;
+  //cfg.needle.scaleX = 0.5; // scaling down a stretched image to produce nicer antialiased result
+  //cfg.needle.axis = { GaugeWidth/2, GaugePosY+GaugeHeight }; // will be automatically positioned with a clunky calculation otherwise
 
   // Optionally share a background image between TFT and the gauge sprite
   // - Image must be png/jpg/bmp/qoi or byte array
