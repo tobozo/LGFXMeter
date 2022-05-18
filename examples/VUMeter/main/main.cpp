@@ -303,10 +303,9 @@ void gfxSetup(LGFX_Device* gfx)
       .w         = GaugeWidth,
       .h         = GaugeHeight
     };
-
-    cfg.needleCfg.needleImg = &vuMeterArrow;
-    cfg.bgImage   = &bgImg;
-
+    cfg.needle.img = &vuMeterArrow;
+    cfg.needle.axis = { GaugeWidth/2, GaugePosY+GaugeHeight };
+    cfg.bgImage    = &bgImg;
     VUMeterGauge = new Gauge_Class( cfg );
   }
 
@@ -363,6 +362,7 @@ void gfxLoop(LGFX_Device* gfx)
   {
     static int prev_x[2];
     static int peak_x[2];
+    float avglevel=0, lastavglevel=0;
 
     auto buf = out.getBuffer();
     if (buf)
@@ -409,7 +409,11 @@ void gfxLoop(LGFX_Device* gfx)
         }
       }
 
-      VUMeterGauge->drawNeedle( (levels[0]+levels[1])*0.5f );
+      avglevel = (levels[0]+levels[1])*0.5f;
+      if( avglevel!=lastavglevel ) {
+        VUMeterGauge->drawNeedle( avglevel );
+        lastavglevel = avglevel;
+      }
 
       gfx->display();
       gfx->endWrite();

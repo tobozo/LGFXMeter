@@ -49,22 +49,22 @@ namespace LGFXMeter
     // [ S..3..5..7..8..+10..+30..+60 ]
     const ruler_unit_t Units_S[] = {
     /*{ idx,       angle,   label, size, distance,            fontFace, fontSize, textDatum }*/
-      {   0,        0.0f,     "S",   10,       12, &FreeSansBold18pt7b,    1.0f,  MC_DATUM },
+      {   0,        0.0f,     "S",   10,       12, &FreeSansBold12pt7b,    1.0f,  MC_DATUM },
       {   1,        0.5f, nullptr,   10,        0,             nullptr,    0.0f,  MC_DATUM },
       {   2,  1.0f*_14th, nullptr,    5,        0,             nullptr,    0.0f,  MC_DATUM },
-      {   3,  2.0f*_14th,     "3",   10,       12, &FreeSansBold12pt7b,    0.95f, MC_DATUM },
+      {   3,  2.0f*_14th,     "3",   10,       12, &FreeSans12pt7b,    1.0f,  MC_DATUM },
       {   4,  3.0f*_14th, nullptr,    5,        0,             nullptr,    0.0f,  MC_DATUM },
-      {   5,  4.0f*_14th,     "5",   10,       12, &FreeSansBold12pt7b,    0.95f, MC_DATUM },
+      {   5,  4.0f*_14th,     "5",   10,       12, &FreeSans12pt7b,    1.0f,  MC_DATUM },
       {   6,  5.0f*_14th, nullptr,    5,        0,             nullptr,    0.0f,  MC_DATUM },
-      {   7,  6.0f*_14th,     "7",   10,       12, &FreeSansBold12pt7b,    0.95f, MC_DATUM },
+      {   7,  6.0f*_14th,     "7",   10,       12, &FreeSans12pt7b,    1.0f,  MC_DATUM },
       {   8,  7.0f*_14th, nullptr,    5,        0,             nullptr,    0.0f,  MC_DATUM },
-      {   9,  8.0f*_14th,     "9",   10,       12, &FreeSansBold12pt7b,    0.95f, MC_DATUM },
-      {  10,  9.0f*_14th,   "+10",   10,       13,  &FreeSansBold9pt7b,    0.8f,  MC_DATUM },
+      {   9,  8.0f*_14th,     "9",   10,       12, &FreeSans12pt7b,    1.0f,  MC_DATUM },
+      {  10,  9.0f*_14th,   "+10",   10,       13,  &FreeSans9pt7b,    1.0f,  MC_DATUM },
       {  11, 10.0f*_14th, nullptr,    0,        0,             nullptr,    0.0f,  MC_DATUM },
-      {  12, 11.0f*_14th,   "+30",   10,       13,  &FreeSansBold9pt7b,    0.8f,  MC_DATUM },
+      {  12, 11.0f*_14th,   "+30",   10,       13,  &FreeSans9pt7b,    1.0f,  MC_DATUM },
       {  13, 12.0f*_14th, nullptr,    0,        0,             nullptr,    0.0f,  MC_DATUM },
       {  14, 13.0f*_14th, nullptr,    0,        0,             nullptr,    0.0f,  MC_DATUM },
-      {  15, 14.0f*_14th,   "+60",   10,       13,  &FreeSansBold9pt7b,    0.8f,  MC_DATUM },
+      {  15, 14.0f*_14th,   "+60",   10,       13,  &FreeSans9pt7b,    1.0f,  MC_DATUM },
     };
 
     // in between +10+20+60 red rulers for Units_S
@@ -94,7 +94,7 @@ namespace LGFXMeter
     };
 
     // [ SWR..1..1.5..2...3...4..5.10.∞ ]
-    const char* copyright = "ICSMeter V0.0.2 by F4HWN";
+    const char* copyright = "LGFXMeter demo by tobozo";
     const ruler_unit_t Units_SWR[] = {
     /*{ idx,       angle,   label, size, distance,            fontFace, fontSize, textDatum }*/
       {  0,       -5.0f,    "SWR",    0,       10,      &FreeSans12pt7b,    0.5f,  TC_DATUM },
@@ -109,7 +109,7 @@ namespace LGFXMeter
       {  9,       66.0f,     "10",    8,       10,      &FreeSans12pt7b,    0.5f,  MC_DATUM },
       { 10,       79.5f,      "∞",    8,       10,      &FreeSans12pt7b,    0.5f,  MC_DATUM },
       { 11,       45.0f, "IC-705",    0,       -1,  &FreeSansBold18pt7b,    0.65f, TC_DATUM }, // main title ruler
-      { 11,       45.0f,  "F4HWN",    0,      -25,   &Orbitron_Light_24,    0.50f, TC_DATUM }, // vanity ruler
+      { 11,       45.0f,"@tobozo",    0,      -25,   &Orbitron_Light_24,    0.50f, TC_DATUM }, // vanity ruler
       { 12,       45.0f,  copyright,  0,      -40,      &Roboto_Thin_24,    0.50f, TC_DATUM }, // copyright ruler
     };
 
