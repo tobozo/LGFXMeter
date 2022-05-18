@@ -98,6 +98,8 @@ This library was inspired by [ICSMeter](https://github.com/armel/ICSMeter).
 
 ```C++
 
+#include <M5Unified.h>
+#include <LGFXMeter.h>
 
 
 void setup()
@@ -141,7 +143,6 @@ void setup()
 
   ICSGauge = new Gauge_Class( cfg );
   ICSGauge->pushGauge(); // render empty gauge (no needle yet)
-
 }
 
 
@@ -154,10 +155,17 @@ void loop()
   // map() it to the gauge angular range [0...90]
   float my_angle = utils::mapFloat( mySensorValue, 0, 4095, 0.0, 90.0 );
 
-  // either animate (300ms blocking) ...
+  // Either animate (300ms blocking) ...
   ICSGauge->animateNeedle( my_angle );
 
-  // .. or just update
+  // .. or use eased drawing (300ms non blocking) ...
+  ICSGauge->setNeedle( my_angle );
+  ICSGauge->easeNeedle( 300 );
+  // ICSGauge->easeNeedle( 300, easing::easeOutBounce );
+  // /!\ See lgfxmeter_types.hpp for complete list of available easing function
+  // Function names
+
+  // .. or just render the needle without easing or animation
   ICSGauge->drawNeedle( my_angle );
 
 }
@@ -171,19 +179,20 @@ void loop()
 
 Background, needle and needle shadow images can be any of the following formats:
 
-  - PNG
-  - QOI
-  - JPG
-  - BMP
+  - PNG: `IMAGE_PNG`
+  - QOI: `IMAGE_QOI`
+  - JPG: `IMAGE_JPG`
+  - BMP: `IMAGE_BMP`
+  - RAW: `IMAGE_RAW` (e.g. Sprite, untested)
 
-As seen in the examples, image data should be stored in byte arrays.
+
+As seen in the examples, image data can be stored in byte arrays.
 
 ```C++
 
   const image_t bgImg         = { 16, bg_png,                 bg_png_len,                 IMAGE_PNG, 320, 240 };
   const image_t vuMeterArrow  = { 16, clock_arrow_png,        clock_arrow_png_len,        IMAGE_PNG, 16, 144 };
   const image_t vuMeterShadow = { 16, clock_arrow_shadow_png, clock_arrow_shadow_png_len, IMAGE_PNG, 16, 144 };
-
 
 ```
 
@@ -198,6 +207,7 @@ Custom background, needle and shadow can be setup as follows:
   cfg.needleCfg.needleImg = &vuMeterArrow;
   cfg.needleCfg.shadowImg = &vuMeterShadow;
   //cfg.needleCfg.scaleX = 0.5; // scaling down a stretched image to produce nicer antialiased result
+  //cfg.needle.axis = { GaugeWidth/2, GaugePosY + GaugeHeight }; // will be automatically positioned with a clunky calculation otherwise
 
 
   // Optionally share a background image between TFT and the gauge sprite
@@ -210,7 +220,25 @@ Custom background, needle and shadow can be setup as follows:
 
 ```
 
+Background can eventually be changed after gauge creation, but it will remove any previously drawn rulers.
+However if the gauge is built without rulers and uses a simple background image, then custom modes (e.g. dark/light) are possible.
 
+```C++
+
+  // firt create your image entity
+  const image_t alternateBgImage = { 16, my_image_data, my_image_data_len, IMAGE_PNG, GaugeWidth, GaugeWidth };
+
+  // overwrite the gauge background (will also remove the rulers !)
+  utils::drawImage( ICSGauge->getGaugeSprite(), alternateBgImage, 0, 0 );
+
+  // eventually change the transparency color depending on the saturation
+  needle::cfg.transparent_color = is_background_dark ? 0x000000U : 0xffffffU;
+
+  // or toggle needle shadow in dark mode
+  needle::cfg.drop_shadow       = is_background_dark ? false : true;
+
+
+```
 
 
 
